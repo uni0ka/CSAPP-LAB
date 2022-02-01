@@ -230,8 +230,8 @@ int conditional(int x, int y, int z) {
  */
 int isLessOrEqual(int x, int y) {
   int y_sub_x = y + (~x + 1);
-  int symbol = y_sub_x>>31;
-  int ans = !symbol;
+  int sign = y_sub_x>>31;
+  int ans = !sign;
   int guard_1 = (x>>31^y>>31) & x>>31; //x<0,y>0
   int guard_2 = (x>>31^y>>31) & y>>31; //x>0,y<0
   return (guard_1 | ans) & !guard_2;
@@ -246,7 +246,9 @@ int isLessOrEqual(int x, int y) {
  *   Rating: 4 
  */
 int logicalNeg(int x) {
-  return 2;
+  int opp = ~x + 1;
+  int flag = opp | x;
+  return (flag>>31) + 1;
 }
 /* howManyBits - return the minimum number of bits required to represent x in
  *             two's complement
@@ -261,7 +263,34 @@ int logicalNeg(int x) {
  *  Rating: 4
  */
 int howManyBits(int x) {
-  return 0;
+  int sign = x>>31;
+  int flag;
+  int cnt_16,cnt_8,cnt_4,cnt_2,cnt_1,cnt_0;
+  x = (~sign & x) | (sign & ~x);
+
+  flag = !!(x >> 16);
+  cnt_16 = flag << 4;
+  x = x >> cnt_16;
+
+  flag = !!(x >> 8);
+  cnt_8 = flag << 3;
+  x = x >> cnt_8;
+
+  flag = !!(x >> 4);
+  cnt_4 = flag << 2;
+  x = x >> cnt_4;
+
+  flag = !!(x >> 2);
+  cnt_2 = flag << 1;
+  x = x >> cnt_2;
+
+  flag = !!(x >> 1);
+  cnt_1 = flag;
+  x = x >> cnt_1;
+
+  cnt_0 = x;
+                
+  return cnt_16 + cnt_8 + cnt_4 + cnt_2 + cnt_1 + cnt_0 + 1;
 }
 //float
 /* 
@@ -276,7 +305,37 @@ int howManyBits(int x) {
  *   Rating: 4
  */
 unsigned floatScale2(unsigned uf) {
-  return 2;
+  unsigned int sign,exp,frac;
+  unsigned int ret;
+  unsigned int inf;
+  sign = uf >> 31;
+  exp = (uf & 0x7f800000)>>23;
+  frac = uf & 0x007fffff;
+  inf = (sign << 31) | (0xff << 23);
+  if(exp == 0xff){
+    return uf;
+  }
+  else if(exp == 0){
+    if(frac == 0){
+      return uf;
+    }
+    else{
+      frac = frac << 1;
+      ret = (sign<<31) | (exp<<23) | frac;
+      return ret;
+    }
+  }
+  else
+  {
+    exp += 1;
+    if(exp == 0xff){
+      return inf;
+    }
+    else{
+      ret = (sign<<31) | (exp<<23) | frac;
+      return ret;
+    }
+  }
 }
 /* 
  * floatFloat2Int - Return bit-level equivalent of expression (int) f
@@ -291,7 +350,31 @@ unsigned floatScale2(unsigned uf) {
  *   Rating: 4
  */
 int floatFloat2Int(unsigned uf) {
-  return 2;
+  unsigned int sign = uf >> 31;
+  unsigned int exp = (uf & 0x7f800000) >> 23;
+  unsigned int frac = uf & 0x007fffff;
+  unsigned int num = frac | 0x00800000;
+  int ans = 0;
+  int E = exp - 127;
+
+  if(E < 0) {
+    return 0;
+  }
+  else if(E > 31){
+    return 0x80000000u;
+  }
+  else if(E > 23 && E < 31){
+    ans = num << (E - 23);
+  }
+  else if(E < 23){
+    ans = num >> (23 - E);
+  }
+
+  if(sign == 1){
+    ans = (~ans) + 1;
+  }
+
+  return ans;
 }
 /* 
  * floatPower2 - Return bit-level equivalent of the expression 2.0^x
@@ -307,5 +390,17 @@ int floatFloat2Int(unsigned uf) {
  *   Rating: 4
  */
 unsigned floatPower2(int x) {
-    return 2;
+  int exp = x + 127;
+  if(x < -149){
+    return 0;
+  }
+  else if(x > 127){
+    return (0xff << 23);
+  }
+  else if(x < -126){
+    return 0x1 << (x + 149);
+  }
+  else{
+    return exp << 23;
+  }
 }
